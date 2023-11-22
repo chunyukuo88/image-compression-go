@@ -15,10 +15,9 @@ import (
 )
 
 func compressImage(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// Get the base64-encoded image data from the request body
 	imageData := request.Body
+	log.Println("Received image data:", imageData)
 
-	// Decode base64-encoded image data into an image.Image
 	img, _, err := image.Decode(bytes.NewReader([]byte(imageData)))
 	if err != nil {
 		log.Println("Error decoding image:", err)
