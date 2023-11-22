@@ -1,54 +1,61 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
+	"bytes"
+	"image"
+	"log"
+
+	"image/jpeg"
+	_ "image/jpeg"
+	_ "image/png"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/ulikunitz/xz"
 )
 
-type App struct {
-	id string
-}
+func compressImage(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	// Get the base64-encoded image data from the request body
+	imageData := request.Body
 
-func newApp(id string) *App {
-	return &App{
-		id: id,
-	}
-}
-
-func (app *App) Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	responseBody := map[string]string{
-		"message": "Howzit hoozle you hit the route gud jerb",
-	}
-
-	responseJSON, err := json.Marshal(responseBody)
+	// Decode base64-encoded image data into an image.Image
+	img, _, err := image.Decode(bytes.NewReader([]byte(imageData)))
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       `{"error":"internal server error"}`,
-		}, nil
+		log.Println("Error decoding image:", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "Error decoding image"}, nil
 	}
 
-	response := events.APIGatewayProxyResponse{
-		Body:       string(responseJSON),
-		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                     "text/plain",
-			"Access-Control-Allow-Origin":      "*",
-			"Access-Control-Allow-Headers":     "Content-Type",
-			"Access-Control-Allow-Methods":     "OPTIONS, POST, GET, PUT, DELETE",
-			"Access-Control-Allow-Credentials": "true",
-		},
+	// Compress the image using xz compression
+	var compressedImageBuffer bytes.Buffer
+	writer, err := xz.NewWriter(&compressedImageBuffer)
+	if err != nil {
+		log.Println("Error creating xz writer:", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "Error creating xz writer"}, nil
 	}
 
-	return response, nil
+	err = jpeg.Encode(writer, img, nil)
+	if err != nil {
+		log.Println("Error compressing image:", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "Error compressing image"}, nil
+	}
+
+	err = writer.Close()
+	if err != nil {
+		log.Println("Error closing xz writer:", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "Error closing xz writer"}, nil
+	}
+
+	// Convert the compressed image buffer to a base64-encoded string
+	compressedImageData := compressedImageBuffer.Bytes()
+
+	// You can save the compressed image to a file or upload it to S3 here if needed
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       string(compressedImageData),
+	}, nil
 }
 
 func main() {
-	id := "someRandomString"
-	app := newApp(id)
-	lambda.Start(app.Handler) // Note that I had initially passed in app.Handler(), which results in really problematic and conflicting error messages.
+	lambda.Start(compressImage)
 }
