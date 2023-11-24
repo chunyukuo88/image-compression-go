@@ -22,7 +22,7 @@ https://docs.aws.amazon.com/lambda/latest/dg/golang-package.html
 
 - delete the original main executable. 
 - make changes
-- in the lambdas directory, do `GOOS=linux GOARCH=amd64 go build -tags lambda.norpc -o bootstrap main.go`
+- in the lambdas directory, do `.PHONY: clean build deploy`
 - `zip myFunction.zip bootstrap` <== Make sure this is specified in the aws-lambda-go-stack.ts file.
 - cd ..
 - cdk deploy
