@@ -10,18 +10,19 @@ export class AwsLambdaGoStack extends cdk.Stack {
     const myFunction = new lambda.Function(this, "MyLambda", {
       code: lambda.Code.fromAsset("lambdas/myFunction.zip"),
       handler: "main",
-      runtime: lambda.Runtime.PROVIDED_AL2
+      runtime: lambda.Runtime.PROVIDED_AL2,
+      timeout: cdk.Duration.seconds(10),
     });
 
     const gateway = new RestApi(this, "myGateway", {
       defaultCorsPreflightOptions: {
         allowOrigins: ["*"],
-        allowMethods: ["GET", "POST", "DELETE", "PUT"],
+        allowMethods: ["POST"],
       }
     });
 
     const integration = new LambdaIntegration(myFunction);
     const testResource = gateway.root.addResource("test");
-    testResource.addMethod("GET", integration);
+    testResource.addMethod("POST", integration);
   }
 }
